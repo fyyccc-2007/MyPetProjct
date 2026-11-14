@@ -3,6 +3,8 @@
 #include <windows.h>
 #include <optional> // SFML 3 需要这个
 #include <iostream>
+#include <vector>
+#include <string>
 
 // 窗口过程回调函数（用于拖拽）
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -15,7 +17,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 
 int main() {
     // 1. 创建无边框窗口 (注意 SFML 3 的写法)
-    sf::RenderWindow window(sf::VideoMode({512, 512}), "Pet", sf::Style::None);
+    sf::RenderWindow window(sf::VideoMode({128, 128}), "Pet", sf::Style::None);
     HWND hwnd = window.getNativeHandle(); // 获取 Windows 原生窗口句柄
 
     // 2. 设置扩展样式：透明、置顶、不占任务栏
@@ -30,15 +32,26 @@ int main() {
     WNDPROC oldProc = (WNDPROC)SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)WndProc);
 
     // 5. 加载宠物图片
-    sf::Texture texture;
-    if (!texture.loadFromFile("mmc.png"))
+    std::vector<sf::Texture> texture;
+    int frameCount=10;
+    for(int i=0;i<frameCount;i++)
     {
-        std::cerr << "Error: 找不到 mmc.png，请检查图片是否在正确的目录下！" << std::endl;
-        return -1;
+        sf::Texture tex;
+        std::string fileName="res/mmc_write/mmc"+std::to_string(i)+".png";
+        if (!tex.loadFromFile(fileName))
+        {
+            std::cerr << "Error: 找不到 "<<fileName<<"，请检查图片是否在正确的目录下！" << std::endl;
+            return -1;
+        }
+        texture.push_back(std::move(tex));
     }
-    sf::Sprite pet(texture);
+    sf::Sprite pet(texture[0]);
     pet.setPosition({0.f, 0.f});
 
+
+    int currentFrame=0;
+    float frameTime=0.1f;
+    sf::Clock animClock;
     while (window.isOpen())
     {
         while (const std::optional event = window.pollEvent())
@@ -47,7 +60,14 @@ int main() {
                 window.close();
         }
 
-        // 【关键】清屏颜色必须是纯黑，这样才会被上面的颜色键变成透明！
+        if(animClock.getElapsedTime().asSeconds()>=frameTime)
+        {
+            currentFrame++;
+            if(currentFrame>=frameCount) currentFrame=0;
+            pet.setTexture(texture[currentFrame]);
+            animClock.restart();
+        }
+
         window.clear(sf::Color::Black); 
         window.draw(pet);
         window.display();
