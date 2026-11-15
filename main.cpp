@@ -6,11 +6,28 @@
 #include <vector>
 #include <string>
 
+RECT g_workArea;
 // 窗口过程回调函数（用于拖拽）
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (msg == WM_NCHITTEST) {
         // 返回 HTCAPTION 让系统认为点在标题栏上，自动支持拖拽
         return HTCAPTION;
+    }
+
+    // 监听拖拽结束消息
+    if(msg==WM_EXITSIZEMOVE)
+    {
+        RECT winRect;
+        GetWindowRect(hwnd,&winRect);
+        int winHeight=winRect.bottom-winRect.top;
+        int distance=abs(g_workArea.bottom-winRect.bottom),lim_distance=50;
+        if(distance<=lim_distance)
+        {
+            int newY=g_workArea.bottom-winHeight;
+            SetWindowPos(hwnd,NULL,winRect.left,newY,0,0, 
+                         SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+        }
+
     }
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
@@ -24,7 +41,9 @@ int main() {
     LONG_PTR exStyle = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
     exStyle |= WS_EX_LAYERED | WS_EX_TOPMOST ;
     SetWindowLongPtr(hwnd, GWL_EXSTYLE, exStyle);
-
+    //设置置顶
+    SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, 
+             SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     // 3. 设置颜色键透明（把纯黑色当作透明色抠掉）
     SetLayeredWindowAttributes(hwnd, RGB(0, 0, 0), 0, LWA_COLORKEY);
 
@@ -48,6 +67,8 @@ int main() {
     sf::Sprite pet(texture[0]);
     pet.setPosition({0.f, 0.f});
 
+    // 获取当前屏幕的工作区
+    SystemParametersInfo(SPI_GETWORKAREA,0,&g_workArea,0);
 
     int currentFrame=0;
     float frameTime=0.1f;
