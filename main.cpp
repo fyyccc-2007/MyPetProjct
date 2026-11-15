@@ -1,11 +1,26 @@
 #define SFML_STATIC
 #include <SFML/Graphics.hpp>
+
+#ifndef UNICODE
+#define UNICODE
+#endif
+#ifndef _UNICODE
+#define _UNICODE
+#endif
+
+
 #include <windows.h>
-#include <optional> // SFML 3 需要这个
+#include <optional> 
 #include <iostream>
 #include <vector>
 #include <string>
+#include <shellapi.h>
+// 托盘点击消息
+#define WM_TRAYICON (WM_APP + 1)
+// 菜单项的 ID
+#define ID_TRAY_EXIT 1001
 
+NOTIFYICONDATAW g_nid = {};//托盘图标数据结构
 RECT g_workArea;
 // 窗口过程回调函数（用于拖拽）
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -27,9 +42,35 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             SetWindowPos(hwnd,NULL,winRect.left,newY,0,0, 
                          SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
         }
-
+    }
+    if(msg==WM_TRAYICON)
+    {
+        if(lParam==WM_RBUTTONUP)
+        {
+            POINT pt;
+            GetCursorPos(&pt);//获取鼠标坐标
+            
+            //创建右键菜单
+            HMENU hMenu=CreatePopupMenu();
+            AppendMenu(hMenu,MF_STRING,ID_TRAY_EXIT,L"退出桌宠");
+        
+            //显示菜单
+            SetForegroundWindow(hwnd);
+            TrackPopupMenu(hMenu,TPM_RIGHTALIGN,pt.x,pt.y,0,hwnd,NULL);
+            PostMessage(hwnd,WM_NULL,0,0);
+            DestroyMenu(hMenu);
+        }
+    }
+    if(msg==WM_COMMAND)
+    {
+        if(LOWORD(wParam)==ID_TRAY_EXIT)
+        {
+            Shell_NotifyIconW(NIM_DELETE, &g_nid); 
+            ExitProcess(0); 
+        }
     }
     return DefWindowProc(hwnd, msg, wParam, lParam);
+    
 }
 
 int main() {
@@ -39,7 +80,7 @@ int main() {
 
     // 2. 设置扩展样式：透明、置顶、不占任务栏
     LONG_PTR exStyle = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
-    exStyle |= WS_EX_LAYERED | WS_EX_TOPMOST ;
+    exStyle |= WS_EX_LAYERED | WS_EX_TOPMOST | WS_EX_TOOLWINDOW;
     SetWindowLongPtr(hwnd, GWL_EXSTYLE, exStyle);
     //设置置顶
     SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, 
@@ -70,6 +111,15 @@ int main() {
     // 获取当前屏幕的工作区
     SystemParametersInfo(SPI_GETWORKAREA,0,&g_workArea,0);
 
+    g_nid.cbSize = sizeof(NOTIFYICONDATAW);
+    g_nid.hWnd = hwnd;                    // 绑定到你的宠物窗口
+    g_nid.uID = 1;                        // 图标 ID
+    g_nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP; 
+    g_nid.uCallbackMessage = WM_TRAYICON; // 点击图标时，发送自定义的消息
+    g_nid.hIcon = LoadIconW(NULL, IDI_APPLICATION); // 暂时用系统默认图标
+    wcscpy_s(g_nid.szTip, L"桌宠"); // 鼠标悬停时的提示文字
+
+    Shell_NotifyIconW(NIM_ADD, &g_nid);
     int currentFrame=0;
     float frameTime=0.1f;
     sf::Clock animClock;
@@ -93,6 +143,8 @@ int main() {
         window.draw(pet);
         window.display();
     }
+
+    Shell_NotifyIconW(NIM_DELETE, &g_nid);
 
     SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)oldProc);
     return 0;
