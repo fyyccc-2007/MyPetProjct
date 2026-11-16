@@ -23,12 +23,33 @@
 NOTIFYICONDATAW g_nid = {};//托盘图标数据结构
 RECT g_workArea;
 // 窗口过程回调函数（用于拖拽）
+
+void ShowMenu(HWND hwnd)
+{
+    POINT pt;
+    GetCursorPos(&pt);//获取鼠标坐标
+    
+    //创建右键菜单
+    HMENU hMenu=CreatePopupMenu();
+    AppendMenu(hMenu,MF_STRING,ID_TRAY_EXIT,L"退出桌宠");
+
+    //显示菜单
+    SetForegroundWindow(hwnd);
+    TrackPopupMenu(hMenu,TPM_RIGHTALIGN,pt.x,pt.y,0,hwnd,NULL);
+    PostMessage(hwnd,WM_NULL,0,0);
+    DestroyMenu(hMenu);
+}
+
 LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (msg == WM_NCHITTEST) {
         // 返回 HTCAPTION 让系统认为点在标题栏上，自动支持拖拽
         return HTCAPTION;
     }
-
+    if (msg == WM_NCRBUTTONUP)
+    {
+        ShowMenu(hwnd); 
+        return 0;              
+    }
     // 监听拖拽结束消息
     if(msg==WM_EXITSIZEMOVE)
     {
@@ -47,18 +68,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     {
         if(lParam==WM_RBUTTONUP)
         {
-            POINT pt;
-            GetCursorPos(&pt);//获取鼠标坐标
-            
-            //创建右键菜单
-            HMENU hMenu=CreatePopupMenu();
-            AppendMenu(hMenu,MF_STRING,ID_TRAY_EXIT,L"退出桌宠");
-        
-            //显示菜单
-            SetForegroundWindow(hwnd);
-            TrackPopupMenu(hMenu,TPM_RIGHTALIGN,pt.x,pt.y,0,hwnd,NULL);
-            PostMessage(hwnd,WM_NULL,0,0);
-            DestroyMenu(hMenu);
+            ShowMenu(hwnd);
         }
     }
     if(msg==WM_COMMAND)
